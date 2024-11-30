@@ -19,6 +19,7 @@ from bots_func import (get_main_menu, get_cancel, get_location_keyboard,
                        get_zone_keyboard, get_reason_full_text)
 from database_functions import is_user_registered, register_user
 from gps_functions import get_address_from_coordinates
+from regexpes import gos_number_re, phone_number_re
 
 from settings import (text_message_answers, YANDEX_CLIENT, YA_DISK_FOLDER,
                       DEV_TG_ID, GOOGLE_CLIENT, GOOGLE_SHEET_NAME,
@@ -169,7 +170,7 @@ async def get_full_name(message: types.Message, state: FSMContext):
 
 
 @dp.message_handler(state=RegistrationStates.waiting_for_phone_number,
-                    regexp=r'^(8|\+7)[\- ]?\(?\d{3}\)?[\- ]?\d{3}[\- ]?\d{2}[\- ]?\d{2}$')
+                    regexp=phone_number_re)
 async def get_conformation(message: types.Message, state: FSMContext):
     await state.update_data(phone_number=message.text)
     user_data = await state.get_data()
@@ -294,7 +295,7 @@ async def process_photo(message: types.Message, state: FSMContext):
 
 
 @dp.message_handler(state=DriverReport.waiting_for_gos_number,
-                    regexp=r'^[АВЕКМНОРСТУХ]\d{3}(?<!000)[АВЕКМНОРСТУХ]{2}\d{2,3}$')
+                    regexp=gos_number_re)
 async def get_gos_number(message: types.Message, state: FSMContext):
     await state.update_data(gos_number=message.text.upper())
 
