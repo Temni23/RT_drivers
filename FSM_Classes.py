@@ -8,7 +8,7 @@ class DriverReport(StatesGroup):
     waiting_for_location = State()
     waiting_for_reason = State()
     waiting_for_photo = State()
-    waiting_for_comment = State()
+    waiting_for_gos_number = State()
     confirmation = State()
 
 

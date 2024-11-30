@@ -287,14 +287,16 @@ async def process_photo(message: types.Message, state: FSMContext):
     photo_id = message.photo[-1].file_id
     await state.update_data(photo=photo_id)
     await message.answer(
-        "Добавьте комментарий или отправьте 'Нет' для пропуска:",
+        "Напишите госномер мусоровоза без пробелов тире и других лишних "
+        "символов. Пример: Е777КХ124",
         reply_markup=get_cancel())
-    await DriverReport.waiting_for_comment.set()
+    await DriverReport.waiting_for_gos_number.set()
 
 
-@dp.message_handler(state=DriverReport.waiting_for_comment)
-async def process_comment(message: types.Message, state: FSMContext):
-    await state.update_data(comment=message.text)
+@dp.message_handler(state=DriverReport.waiting_for_gos_number,
+                    regexp=r'^[АВЕКМНОРСТУХ]\d{3}(?<!000)[АВЕКМНОРСТУХ]{2}\d{2,3}$')
+async def get_gos_number(message: types.Message, state: FSMContext):
+    await state.update_data(gos_number=message.text.upper())
 
     # Получаем все данные
     user_data = await state.get_data()
@@ -302,12 +304,21 @@ async def process_comment(message: types.Message, state: FSMContext):
         f"Техзона: {user_data['zone']}\n"
         f"Геолокация: {user_data['latitude']}, {user_data['longitude']}\n"
         f"Причина: {user_data['reason']}\n"
-        f"Комментарий: {user_data.get('comment', 'Нет')}"
+        f"Госномер: {user_data.get('gos_number')}"
     )
     await message.answer_photo(photo=user_data['photo'],
                                caption=confirmation_text,
                                reply_markup=get_confirmation_keyboard())
     await DriverReport.confirmation.set()
+
+
+@dp.message_handler(state=DriverReport.waiting_for_gos_number)
+async def check_get_gos_number(message: types.Message, state: FSMContext):
+    """Отрабатывает если госномер не соответствует паттерну"""
+    await message.answer(
+        "Русскими буквами напишите госномер мусоровоза "
+        "без пробелов тире и других лишних символов. Пример: В414ТЕ124",
+        reply_markup=get_cancel())
 
 
 @dp.callback_query_handler(lambda callback: callback.data == "confirm",
@@ -316,7 +327,7 @@ async def confirm_data(callback: types.CallbackQuery, state: FSMContext):
     await callback.message.answer("Информация принята. Спасибо!")
     user_data = await state.get_data()
     address = get_address_from_coordinates(user_data['latitude'],
-                                          user_data['longitude'], GPS_API_KEY)
+                                           user_data['longitude'], GPS_API_KEY)
     await callback.message.answer(f"Адрес: {address}")
     await state.finish()
 
