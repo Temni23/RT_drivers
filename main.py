@@ -3,27 +3,26 @@ import os
 from random import choice
 
 from aiogram import Bot, Dispatcher, types
-from aiogram.types import (InlineKeyboardButton, InlineKeyboardMarkup,
-                           ReplyKeyboardRemove)
+from aiogram.types import (InlineKeyboardButton, InlineKeyboardMarkup)
 from aiogram.utils import executor
 from aiogram.contrib.middlewares.logging import LoggingMiddleware
 from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters import Text, Command
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from dotenv import load_dotenv
-from datetime import datetime, timedelta
 
 from FSM_Classes import RegistrationStates, DriverReport
-from bots_func import (get_main_menu, get_cancel, get_location_keyboard,
-                       get_confirmation_keyboard, get_reason_keyboard,
-                       get_zone_keyboard, get_reason_full_text)
-from database_functions import is_user_registered, register_user
-from gps_functions import get_address_from_coordinates
+from app_functions.bots_func import (get_main_menu, get_cancel,
+                                     get_location_keyboard,
+                                     get_confirmation_keyboard,
+                                     get_reason_keyboard,
+                                     get_zone_keyboard, get_reason_full_text)
+from app_functions.database_functions import is_user_registered, register_user
+from app_functions.gps_functions import get_address_from_coordinates
 from regexpes import gos_number_re, phone_number_re
 
-from settings import (text_message_answers, YANDEX_CLIENT, YA_DISK_FOLDER,
-                      DEV_TG_ID, GOOGLE_CLIENT, GOOGLE_SHEET_NAME,
-                      database_path, log_file, TIMEDELTA, zones, reasons,
+from settings import (text_message_answers, DEV_TG_ID, database_path, log_file,
+                      zones, reasons,
                       GPS_API_KEY)
 
 load_dotenv()

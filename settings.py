@@ -5,7 +5,7 @@ from oauth2client.service_account import ServiceAccountCredentials
 from dotenv import load_dotenv
 from gspread import authorize
 
-from database_functions import init_db
+from app_functions.database_functions import init_db
 
 load_dotenv()
 
