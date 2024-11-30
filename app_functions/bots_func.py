@@ -12,10 +12,18 @@ from datetime import datetime
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
+from aiogram import Bot
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, \
     ReplyKeyboardMarkup, KeyboardButton
 
 from dotenv import load_dotenv
+
+from app_functions.api_functions import upload_and_get_link, \
+    upload_information_to_gsheets
+from app_functions.gps_functions import get_address_from_coordinates
+from models import UserData
+from settings import DEV_TG_ID, YANDEX_CLIENT, YA_DISK_FOLDER, GPS_API_KEY, \
+    GOOGLE_CLIENT, GOOGLE_SHEET_NAME
 
 load_dotenv()
 
@@ -133,3 +141,27 @@ async def send_email(message_text, target_email):
         mailserver.quit()
     except smtplib.SMTPException:
         print("Ошибка: Невозможно отправить сообщение")
+
+
+async def save_user_data(data: UserData, tg_bot: Bot):
+    print(data)
+    try:
+        downloaded_file = await download_photo(data.get('photo'), tg_bot)
+        ya_disk_file_name = upload_and_get_link(YANDEX_CLIENT, downloaded_file,
+                                                YA_DISK_FOLDER)
+        data.update({'ya_disk_file_name': ya_disk_file_name})
+    except Exception as e:
+        await tg_bot.send_message(DEV_TG_ID,
+                               f"Произошла ошибка {e} при загрузке фото. Смотри логи.")
+    try:
+        address = get_address_from_coordinates(data.get('latitude'), data.get('longitude'), GPS_API_KEY)
+    except Exception as e:
+        await tg_bot.send_message(DEV_TG_ID,
+                                  f"Произошла ошибка {e} при получении адреса. Смотри логи.")
+    try:
+        gs_data = list(data.values())
+        print(gs_data)
+        upload_information_to_gsheets(GOOGLE_CLIENT, GOOGLE_SHEET_NAME, gs_data)
+    except Exception as e:
+        await tg_bot.send_message(DEV_TG_ID,
+                                  f"Произошла ошибка {e} при загрузке ифнормации. Смотри логи.")

@@ -13,6 +13,6 @@ def get_address_from_coordinates(latitude, longitude, apikey):
         data = response.json()
         features = data.get("features", [])
         if features:
-            return features[0]["properties"]['formatted']
+            return features[0]["properties"]
         return "Адрес не найден"
     return f"Ошибка: {response.status_code}"

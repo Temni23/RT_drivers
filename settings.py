@@ -15,6 +15,8 @@ log_file = os.path.join(log_folder, 'bot.log')
 
 database_path = init_db('database', 'users.db')
 
+API_TOKEN = os.getenv('TELEGRAM_TOKEN')
+
 # Создаем клиент яндекса
 YANDEX_CLIENT = yadisk.Client(token=os.getenv('YA_DISK_TOKEN'))
 YA_DISK_FOLDER = os.getenv('YA_DISK_FOLDER')
@@ -25,10 +27,7 @@ scope = ['https://spreadsheets.google.com/feeds',
 credentials = ServiceAccountCredentials.from_json_keyfile_name(
     os.getenv('GSHEETS_KEY'), scope)
 GOOGLE_CLIENT = authorize(credentials)
-GOOGLE_SHEET_NAME_LEFT = os.getenv('GOOGLE_SHEET_NAME_LEFT')
-GOOGLE_SHEET_NAME_RIGHT = os.getenv('GOOGLE_SHEET_NAME_RIGHT')
-GOOGLE_SHEET_NAME = {'left': GOOGLE_SHEET_NAME_LEFT,
-                     'right': GOOGLE_SHEET_NAME_RIGHT}
+GOOGLE_SHEET_NAME = os.getenv('GOOGLE_SHEET_NAME')
 
 # Работа с GPS
 GPS_API_KEY = os.getenv('GPS_API_KEY')

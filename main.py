@@ -16,14 +16,15 @@ from app_functions.bots_func import (get_main_menu, get_cancel,
                                      get_location_keyboard,
                                      get_confirmation_keyboard,
                                      get_reason_keyboard,
-                                     get_zone_keyboard, get_reason_full_text)
+                                     get_zone_keyboard, get_reason_full_text,
+                                     download_photo, save_user_data)
 from app_functions.database_functions import is_user_registered, register_user
 from app_functions.gps_functions import get_address_from_coordinates
 from regexpes import gos_number_re, phone_number_re
 
 from settings import (text_message_answers, DEV_TG_ID, database_path, log_file,
                       zones, reasons,
-                      GPS_API_KEY)
+                      GPS_API_KEY, YANDEX_CLIENT, YA_DISK_FOLDER, API_TOKEN)
 
 load_dotenv()
 
@@ -41,8 +42,6 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)  # Создаём объект логгера
 logger.info("Логи будут сохраняться в файл: %s", log_file)
-
-API_TOKEN = os.getenv('TELEGRAM_TOKEN')
 
 bot = Bot(token=API_TOKEN)
 storage = MemoryStorage()
@@ -240,6 +239,7 @@ async def start_report(callback: types.CallbackQuery):
 async def process_zone(callback: types.CallbackQuery, state: FSMContext):
     zone = callback.data.split(":")[1]
     await state.update_data(zone=zone)
+    await state.update_data(user_id=callback.from_user.id)
     await callback.message.answer("Отправьте геолокацию",
                                   reply_markup=get_location_keyboard())
     await DriverReport.waiting_for_location.set()
@@ -330,6 +330,7 @@ async def confirm_data(callback: types.CallbackQuery, state: FSMContext):
                                            user_data['longitude'], GPS_API_KEY)
     await callback.message.answer(f"Адрес: {address}")
     await state.finish()
+    await save_user_data(user_data, bot)
 
 
 if __name__ == '__main__':
