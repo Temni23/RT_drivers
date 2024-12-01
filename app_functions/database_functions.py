@@ -140,17 +140,15 @@ def get_user_by_id(user_id: int, db_path: str) -> dict:
 
     try:
         cursor.execute(
-            'SELECT id, full_name, phone_number, workplace, username FROM users WHERE id = ?',
+            'SELECT id, full_name, phone_number, username FROM users WHERE id = ?',
             (user_id,))
         row = cursor.fetchone()
 
         if row:
             user_data = {
-                "id": row[0],
                 "full_name": row[1],
                 "phone_number": row[2],
-                "workplace": row[3],
-                "username": row[4],
+                "username": row[3],
             }
         else:
             user_data = {}  # Возвращаем пустой словарь, если пользователь не найден

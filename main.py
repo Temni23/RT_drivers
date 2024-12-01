@@ -77,49 +77,52 @@ async def send_welcome(message: types.Message):
         )
 
 
-@dp.callback_query_handler(lambda callback: callback.data == 'cancel',
-                           state="*")
-async def cmd_cancel(callback: types.CallbackQuery, state: FSMContext) -> None:
-    """
-    Отрабатывает команду cancel и завершает текущее состояние.
-    """
-    current_state = await state.get_state()
+@dp.callback_query_handler(Text(equals="cancel"), state="*")
+async def cancel_callback(callback_query: types.CallbackQuery, state: FSMContext):
+    """Обрабатывает отмену через callback-кнопку."""
+    await process_cancel(event=callback_query, state=state)
 
+
+@dp.message_handler(Command("cancel"), state="*")
+async def cancel_command(message: types.Message, state: FSMContext):
+    """Обрабатывает отмену через команду /cancel."""
+    await process_cancel(event=message, state=state)
+
+
+async def process_cancel(event: types.CallbackQuery | types.Message, state: FSMContext):
+    """Общая логика для обработки отмены."""
+    current_state = await state.get_state()
     if current_state is not None:
         await state.finish()
-        await callback.message.answer("Вы отменили текущую операцию. "
-                                      "Давайте начнем заново",
-                                      reply_markup=get_main_menu())
+        text = "Вы отменили текущую операцию. Давайте начнем заново."
     else:
-        await callback.message.answer(
-            "Сейчас нечего отменять. Попробуйте использовать главное меню.",
-            reply_markup=get_main_menu())
+        text = "Сейчас нечего отменять. Попробуйте использовать главное меню."
 
-    await callback.answer()
+    if isinstance(event, types.CallbackQuery):
+        await event.message.answer(text, reply_markup=get_main_menu())
+        await event.answer()
+    elif isinstance(event, types.Message):
+        await event.answer(text, reply_markup=get_main_menu())
 
 
-##############################################################################
-##################### Работа с сообщениями ####################################
-##############################################################################
 
-@dp.message_handler()
-async def random_text_message_answer(message: types.Message) -> None:
-    """
-    Функция отправляет случайный ответ из предустановленного списка.
-
-    На текстовое сообщение пользователя.
-    """
-    text = choice(text_message_answers)
-    await message.reply(text=text, reply_markup=get_main_menu())
+@dp.message_handler(commands=['reg'])
+async def start_registration_command(message: types.Message):
+    """Обработка команды /reg"""
+    await process_registration(event=message)
 
 
 ###############################################################################
 ################# Машина состояний регистрация ################################
 ###############################################################################
-
 @dp.callback_query_handler(Text(equals="register"))
-@dp.message_handler(Command("reg"))
-async def start_registration(event: types.CallbackQuery | types.Message):
+async def start_registration_callback(callback_query: types.CallbackQuery):
+    """Обработка нажатия кнопки с callback_data="register"."""
+    await process_registration(event=callback_query)
+
+
+async def process_registration(event: types.CallbackQuery | types.Message):
+    """Общая логика регистрации для CallbackQuery и Message."""
     if isinstance(event, types.CallbackQuery):
         user_id = event.from_user.id
         message = event.message
@@ -127,7 +130,6 @@ async def start_registration(event: types.CallbackQuery | types.Message):
         user_id = event.from_user.id
         message = event
     else:
-        # Если `event` не является `CallbackQuery` или `Message`
         logging.warning("Unknown event type")
         return
 
@@ -238,8 +240,8 @@ async def start_report(callback: types.CallbackQuery):
 @dp.callback_query_handler(state=DriverReport.waiting_for_zone)
 async def process_zone(callback: types.CallbackQuery, state: FSMContext):
     zone = callback.data.split(":")[1]
-    await state.update_data(zone=zone)
     await state.update_data(user_id=callback.from_user.id)
+    await state.update_data(zone=zone)
     await callback.message.answer("Отправьте геолокацию",
                                   reply_markup=get_location_keyboard())
     await DriverReport.waiting_for_location.set()
@@ -326,11 +328,23 @@ async def check_get_gos_number(message: types.Message, state: FSMContext):
 async def confirm_data(callback: types.CallbackQuery, state: FSMContext):
     await callback.message.answer("Информация принята. Спасибо!")
     user_data = await state.get_data()
-    address = get_address_from_coordinates(user_data['latitude'],
-                                           user_data['longitude'], GPS_API_KEY)
-    await callback.message.answer(f"Адрес: {address}")
     await state.finish()
     await save_user_data(user_data, bot)
+
+
+##############################################################################
+##################### Работа с сообщениями ####################################
+##############################################################################
+
+@dp.message_handler()
+async def random_text_message_answer(message: types.Message) -> None:
+    """
+    Функция отправляет случайный ответ из предустановленного списка.
+
+    На текстовое сообщение пользователя.
+    """
+    text = choice(text_message_answers)
+    await message.reply(text=text, reply_markup=get_main_menu())
 
 
 if __name__ == '__main__':

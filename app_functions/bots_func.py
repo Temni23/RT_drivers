@@ -20,10 +20,12 @@ from dotenv import load_dotenv
 
 from app_functions.api_functions import upload_and_get_link, \
     upload_information_to_gsheets
-from app_functions.gps_functions import get_address_from_coordinates
+from app_functions.database_functions import get_user_by_id
+from app_functions.gps_functions import get_address_from_coordinates, \
+    parse_data_from_gps_dict
 from models import UserData
 from settings import DEV_TG_ID, YANDEX_CLIENT, YA_DISK_FOLDER, GPS_API_KEY, \
-    GOOGLE_CLIENT, GOOGLE_SHEET_NAME
+    GOOGLE_CLIENT, GOOGLE_SHEET_NAME, database_path
 
 load_dotenv()
 
@@ -60,13 +62,16 @@ def get_main_menu() -> InlineKeyboardMarkup:
 def get_zone_keyboard(zones: list[str]):
     keyboard = InlineKeyboardMarkup()
     for zone in zones:
-        keyboard.add(InlineKeyboardButton(text=zone, callback_data=f"zone:{zone}"))
+        keyboard.add(
+            InlineKeyboardButton(text=zone, callback_data=f"zone:{zone}"))
     return keyboard
 
 
 def get_location_keyboard():
-    keyboard = ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
-    location_button = KeyboardButton("📍 Отправить геолокацию", request_location=True)
+    keyboard = ReplyKeyboardMarkup(resize_keyboard=True,
+                                   one_time_keyboard=True)
+    location_button = KeyboardButton("📍 Отправить геолокацию",
+                                     request_location=True)
     keyboard.add(location_button)
     return keyboard
 
@@ -81,7 +86,8 @@ def get_reason_keyboard(reasons: list[str], page=0):
     for reason in reasons_page:
         reason.find('.')
         keyboard.add(
-            InlineKeyboardButton(reason, callback_data=f"reason:{reason[:reason.find('.')+1]}"))
+            InlineKeyboardButton(reason,
+                                 callback_data=f"reason:{reason[:reason.find('.') + 1]}"))
 
     # Добавляем кнопки "⬅ Назад" и "➡ Далее"
     navigation_buttons = []
@@ -97,11 +103,13 @@ def get_reason_keyboard(reasons: list[str], page=0):
 
     return keyboard
 
+
 def get_reason_full_text(reasons: list, part: str) -> str | None:
     for reason in reasons:
         if reason.startswith(part):
             return reason
     return None
+
 
 def get_confirmation_keyboard():
     keyboard = InlineKeyboardMarkup(row_width=2)
@@ -143,7 +151,16 @@ async def send_email(message_text, target_email):
         print("Ошибка: Невозможно отправить сообщение")
 
 
-async def save_user_data(data: UserData, tg_bot: Bot):
+async def save_user_data(data: dict, tg_bot: Bot):
+    gs_data = []
+    address_dict = []
+    try:
+        gs_data = list(
+            get_user_by_id(data.get('user_id'), database_path).values())
+    except Exception as e:
+        await tg_bot.send_message(DEV_TG_ID,
+                                  f"Произошла ошибка {e} при поиске пользователя.")
+        return
     print(data)
     try:
         downloaded_file = await download_photo(data.get('photo'), tg_bot)
@@ -152,16 +169,26 @@ async def save_user_data(data: UserData, tg_bot: Bot):
         data.update({'ya_disk_file_name': ya_disk_file_name})
     except Exception as e:
         await tg_bot.send_message(DEV_TG_ID,
-                               f"Произошла ошибка {e} при загрузке фото. Смотри логи.")
+                                  f"Произошла ошибка {e} при загрузке фото.")
+        return
     try:
-        address = get_address_from_coordinates(data.get('latitude'), data.get('longitude'), GPS_API_KEY)
+        address = get_address_from_coordinates(data.get('latitude'),
+                                               data.get('longitude'),
+                                               GPS_API_KEY)
+        address_dict = parse_data_from_gps_dict(address)
     except Exception as e:
         await tg_bot.send_message(DEV_TG_ID,
-                                  f"Произошла ошибка {e} при получении адреса. Смотри логи.")
+                                  f"Произошла ошибка {e} при получении адреса.")
+        return
     try:
-        gs_data = list(data.values())
+        del data['photo']
+        gs_data.extend(list(data.values()))
+        if address_dict:
+            gs_data.extend(list(address_dict.values()))
         print(gs_data)
-        upload_information_to_gsheets(GOOGLE_CLIENT, GOOGLE_SHEET_NAME, gs_data)
+        upload_information_to_gsheets(GOOGLE_CLIENT, GOOGLE_SHEET_NAME,
+                                      gs_data)
     except Exception as e:
         await tg_bot.send_message(DEV_TG_ID,
-                                  f"Произошла ошибка {e} при загрузке ифнормации. Смотри логи.")
+                                  f"Произошла ошибка {e} при загрузке ифнормации.")
+        return

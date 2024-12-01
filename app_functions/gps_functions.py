@@ -16,3 +16,13 @@ def get_address_from_coordinates(latitude, longitude, apikey):
             return features[0]["properties"]
         return "Адрес не найден"
     return f"Ошибка: {response.status_code}"
+
+
+def parse_data_from_gps_dict(gps_dict: dict) -> dict:
+    """Разбирает полученные от gps библиотеки данные."""
+    result = {}
+    keys = ['formatted', 'city', 'county', 'district', 'suburb', 'street',
+            'housenumber']
+    for key in keys:
+        result[key] = gps_dict.get(key, f'{key} не найдено')
+    return result
