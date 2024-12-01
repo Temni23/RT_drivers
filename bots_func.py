@@ -18,12 +18,11 @@ from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, \
 
 from dotenv import load_dotenv
 
-from app_functions.api_functions import upload_and_get_link, \
+from api_functions import upload_and_get_link, \
     upload_information_to_gsheets
-from app_functions.database_functions import get_user_by_id
-from app_functions.gps_functions import get_address_from_coordinates, \
+from database_functions import get_user_by_id
+from gps_functions import get_address_from_coordinates, \
     parse_data_from_gps_dict
-from models import UserData
 from settings import DEV_TG_ID, YANDEX_CLIENT, YA_DISK_FOLDER, GPS_API_KEY, \
     GOOGLE_CLIENT, GOOGLE_SHEET_NAME, database_path
 

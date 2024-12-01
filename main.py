@@ -11,17 +11,19 @@ from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from dotenv import load_dotenv
 
 from FSM_Classes import RegistrationStates, DriverReport
-from app_functions.bots_func import (get_main_menu, get_cancel,
-                                     get_location_keyboard,
-                                     get_confirmation_keyboard,
-                                     get_reason_keyboard,
-                                     get_zone_keyboard, get_reason_full_text,
-                                     save_user_data)
-from app_functions.database_functions import is_user_registered, register_user
+from bots_func import (get_main_menu, get_cancel,
+                       get_location_keyboard,
+                       get_confirmation_keyboard,
+                       get_reason_keyboard,
+                       get_zone_keyboard, get_reason_full_text,
+                       save_user_data)
+from database_functions import is_user_registered, register_user, is_admin, \
+    ban_user, is_user_banned
 from regexpes import gos_number_re, phone_number_re
 
 from settings import (text_message_answers, DEV_TG_ID, database_path, log_file,
                       zones, reasons, API_TOKEN)
+from textes_for_messages import new_user, reg_keyboard, start_process
 
 load_dotenv()
 
@@ -62,16 +64,23 @@ async def send_welcome(message: types.Message):
                             "Воспользуйтесь меню \U0001F69B",
                             reply_markup=get_main_menu())
     else:
-        keyboard = InlineKeyboardMarkup().add(
-            InlineKeyboardButton("Зарегистрироваться",
-                                 callback_data="register")
-        )
+        await message.reply(new_user, reply_markup=reg_keyboard)
+
+
+@dp.message_handler(lambda message: message.text.startswith('ban'))
+async def message_ban_user(message: types.Message):
+    """
+    Отрабатывает команду ban user_id.
+    """
+    user_id = message.from_user.id
+    banned_id = int(message.text.split(' ')[1])
+    if is_admin(database_path, user_id):
+        ban_result = ban_user(database_path, banned_id)
         await message.reply(
-            "Добро пожаловать! Похоже, вы новый пользователь. "
-            "Нажмите кнопку ниже для регистрации. "
-            "Это не займет много времени \U0001F64F\U0001F64F\U0001F64F",
-            reply_markup=keyboard
+            f"user {banned_id} ban result {ban_result}"
         )
+    else:
+        await message.reply("Неизвестная команда")
 
 
 @dp.callback_query_handler(Text(equals="cancel"), state="*")
@@ -129,18 +138,16 @@ async def process_registration(event: types.CallbackQuery | types.Message):
     else:
         logging.warning("Unknown event type")
         return
+    if is_user_banned(database_path, user_id):
+        await message.answer("Ваш  ID  заблокирован.")
+        return
 
     if is_user_registered(database_path, user_id):
         await message.answer("Вы уже зарегистрированы! "
                              "Воспользуйтесь меню \U0001F69B",
                              reply_markup=get_main_menu())
     else:
-        await message.answer(text="Начнем! \nОтветным сообщением направляйте"
-                                  " мне нужную "
-                                  "информацию, а я ее обработаю. "
-                                  "\nПожалуйста, вводите "
-                                  "верные данные, это очень важно для "
-                                  "эффективность моей работы. \n\n"
+        await message.answer(text=start_process +
                                   "1/2 Напишите Вашу Фамилию Имя и Отчество",
                              reply_markup=get_cancel())
     await RegistrationStates.waiting_for_full_name.set()
@@ -229,9 +236,14 @@ async def confirm_registration(callback_query: types.CallbackQuery,
 
 @dp.callback_query_handler(lambda callback: callback.data == "driver_report")
 async def start_report(callback: types.CallbackQuery):
-    await callback.message.answer("Выберите Технологическую зону:",
-                                  reply_markup=get_zone_keyboard(zones))
-    await DriverReport.waiting_for_zone.set()
+    user_id = callback.from_user.id
+    if is_user_registered(database_path, user_id):
+        await callback.message.answer("Выберите Технологическую зону:",
+                                      reply_markup=get_zone_keyboard(zones))
+        await DriverReport.waiting_for_zone.set()
+    else:
+        await callback.message.answer(new_user,
+                                      reply_markup=reg_keyboard)
 
 
 @dp.callback_query_handler(state=DriverReport.waiting_for_zone)

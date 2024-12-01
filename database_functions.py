@@ -36,20 +36,17 @@ def init_db(database_folder: str, database_name: str) -> str:
             )
         ''')
         cursor.execute('''
-            CREATE TABLE IF NOT EXISTS kgm_requests (
+            CREATE TABLE IF NOT EXISTS admins (
                 id INTEGER PRIMARY KEY,
-                timestamp INTEGER,
-                full_name TEXT,
-                phone_number TEXT,
-                management_company TEXT,
-                adress TEXT,
-                district TEXT,
-                waste_type TEXT,
-                comment TEXT,
-                photo_link TEXT,
-                username TEXT
+                user_id INTEGER
             )
         ''')
+        cursor.execute('''
+                    CREATE TABLE IF NOT EXISTS ban_list (
+                        id INTEGER PRIMARY KEY,
+                        user_id INTEGER
+                    )
+                ''')
         conn.commit()
         conn.close()
         return db_path
@@ -70,6 +67,30 @@ def is_user_registered(db_path: str, user_id: int):
     return result is not None
 
 
+def is_admin(db_path: str, user_id: int):
+    """
+    Проверка пользователя на наличие в базе данных.
+    """
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    cursor.execute("SELECT id FROM admins WHERE user_id = ?", (user_id,))
+    result = cursor.fetchone()
+    conn.close()
+    return result is not None
+
+
+def is_user_banned(db_path: str, user_id: int):
+    """
+    Проверка пользователя на наличие в базе данных.
+    """
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    cursor.execute("SELECT id FROM ban_list WHERE user_id = ?", (user_id,))
+    result = cursor.fetchone()
+    conn.close()
+    return result is not None
+
+
 def register_user(db_path: str, user_id: int, full_name: str,
                   phone_number: str, username: str):
     """
@@ -78,7 +99,7 @@ def register_user(db_path: str, user_id: int, full_name: str,
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
     cursor.execute(
-        "INSERT INTO users (id, full_name, phone_number, username) VALUES (?, ?, ?, ?)",
+        "INSERT OR IGNORE INTO users (id, full_name, phone_number, username) VALUES (?, ?, ?, ?)",
         (user_id, full_name, phone_number, username))
     conn.commit()
     conn.close()
@@ -121,9 +142,6 @@ def save_kgm_request(db_path: str, full_name: str, phone_number: str,
         conn.close()
 
 
-import sqlite3
-
-
 def get_user_by_id(user_id: int, db_path: str) -> dict:
     """
     Получает информацию о пользователе из базы данных по user_id.
@@ -157,3 +175,39 @@ def get_user_by_id(user_id: int, db_path: str) -> dict:
         conn.close()
 
     return user_data
+
+
+def ban_user(db_path: str, user_id: int) -> bool:
+    """
+    Находит пользователя в таблице `users`, удаляет его и добавляет в таблицу `ban_list`.
+
+    Args:
+        db_path (str): Путь к базе данных SQLite.
+        user_id (int): ID пользователя для бана.
+
+    Returns:
+        bool: True, если операция выполнена успешно, иначе False.
+    """
+    try:
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+
+        # Проверяем, существует ли пользователь в таблице users
+        cursor.execute("SELECT id FROM users WHERE id = ?", (user_id,))
+        user = cursor.fetchone()
+        if not user:
+            return False
+
+        cursor.execute("DELETE FROM users WHERE id = ?", (user_id,))
+        cursor.execute("INSERT INTO ban_list (user_id) VALUES (?)", (user_id,))
+
+        conn.commit()
+        return True
+
+    except sqlite3.Error as e:
+        print(f"Ошибка при работе с базой данных: {e}")
+        return False
+
+    finally:
+        if conn:
+            conn.close()
