@@ -1,5 +1,4 @@
 import logging
-import os
 from random import choice
 
 from aiogram import Bot, Dispatcher, types
@@ -17,14 +16,12 @@ from app_functions.bots_func import (get_main_menu, get_cancel,
                                      get_confirmation_keyboard,
                                      get_reason_keyboard,
                                      get_zone_keyboard, get_reason_full_text,
-                                     download_photo, save_user_data)
+                                     save_user_data)
 from app_functions.database_functions import is_user_registered, register_user
-from app_functions.gps_functions import get_address_from_coordinates
 from regexpes import gos_number_re, phone_number_re
 
 from settings import (text_message_answers, DEV_TG_ID, database_path, log_file,
-                      zones, reasons,
-                      GPS_API_KEY, YANDEX_CLIENT, YA_DISK_FOLDER, API_TOKEN)
+                      zones, reasons, API_TOKEN)
 
 load_dotenv()
 
@@ -315,7 +312,7 @@ async def get_gos_number(message: types.Message, state: FSMContext):
 
 
 @dp.message_handler(state=DriverReport.waiting_for_gos_number)
-async def check_get_gos_number(message: types.Message, state: FSMContext):
+async def check_get_gos_number(message: types.Message):
     """Отрабатывает если госномер не соответствует паттерну"""
     await message.answer(
         "Русскими буквами напишите госномер мусоровоза "
