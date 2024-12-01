@@ -27,6 +27,8 @@ def init_db(database_folder: str, database_name: str) -> str:
         # Подключаемся к базе и создаём таблицы
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
+
+        # Создание таблицы пользователей
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS users (
                 id INTEGER PRIMARY KEY,
@@ -35,21 +37,53 @@ def init_db(database_folder: str, database_name: str) -> str:
                 username TEXT
             )
         ''')
+
+        # Создание таблицы администраторов
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS admins (
                 id INTEGER PRIMARY KEY,
                 user_id INTEGER
             )
         ''')
+
+        # Создание таблицы отчетов КГМ
         cursor.execute('''
-                    CREATE TABLE IF NOT EXISTS ban_list (
-                        id INTEGER PRIMARY KEY,
-                        user_id INTEGER
-                    )
-                ''')
+            CREATE TABLE IF NOT EXISTS driver_reports (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                timestamp INTEGER,
+                full_name TEXT,
+                phone_number TEXT,
+                username TEXT,
+                user_id INTEGER,
+                zone TEXT,
+                latitude REAL,
+                longitude REAL,
+                reason TEXT,
+                gos_number TEXT,
+                photo_name TEXT,
+                full_address TEXT,
+                city TEXT,
+                county TEXT,
+                district TEXT,
+                suburb TEXT,
+                street TEXT,
+                house_number TEXT
+            )
+        ''')
+
+        # Создание таблицы заблокированных пользователей
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS ban_list (
+                id INTEGER PRIMARY KEY,
+                user_id INTEGER
+            )
+        ''')
+
+        # Сохраняем изменения и закрываем соединение
         conn.commit()
         conn.close()
         return db_path
+
     except Exception as e:
         print(f"Ошибка при инициализации базы данных: {e}")
         raise
@@ -105,41 +139,41 @@ def register_user(db_path: str, user_id: int, full_name: str,
     conn.close()
 
 
-def save_kgm_request(db_path: str, full_name: str, phone_number: str,
-                     management_company: str, address: str, district: str,
-                     waste_type: str, comment: str, photo_link: str,
-                     username: str):
+def save_driver_report(db_path: str, report_data: list) -> bool:
     """
-    Сохраняет заявку на вывоз КГМ в базу данных.
+    Сохраняет информацию о заявке в базу данных.
 
     Args:
-        db_path (str): Имя файла базы данных.
-        full_name (str): ФИО пользователя.
-        phone_number (str): Номер телефона пользователя.
-        management_company (str): Название управляющей компании.
-        address (str): Адрес дома.
-        district (str): Адрес дома.
-        waste_type (str): Тип отходов.
-        comment: (str): Комментарий пользователя.
-        photo_link (str): Ссылка на фото отходов.
-        username (str): Username пользователя в Telegram.
+        db_path (str): Путь к базе данных SQLite.
+        report_data (list): Список данных.
+
+    Returns:
+        bool: True, если данные успешно сохранены, иначе False.
     """
-    conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
     try:
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
         timestamp = int(time.time())  # Текущее время в формате UNIX
+        report_data.insert(0, timestamp)
+        # SQL-запрос для вставки данных
         cursor.execute('''
-            INSERT INTO kgm_requests (
-                timestamp, full_name, phone_number, management_company, 
-                adress, district, waste_type, comment, photo_link, username
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ''', (timestamp, full_name, phone_number, management_company,
-              address, district, waste_type, comment, photo_link, username))
+            INSERT INTO driver_reports (
+                timestamp, full_name, phone_number, username, user_id, zone, latitude, 
+                longitude, reason, gos_number, photo_name, full_address, city, 
+                county, district, suburb, street, house_number
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', report_data[1:])
+
         conn.commit()
+        return True
+
     except sqlite3.Error as e:
-        print(f"Ошибка при сохранении заявки: {e}")
+        print(f"Ошибка при сохранении данных: {e}")
+        return False
+
     finally:
-        conn.close()
+        if conn:
+            conn.close()
 
 
 def get_user_by_id(user_id: int, db_path: str) -> dict:

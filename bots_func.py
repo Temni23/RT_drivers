@@ -6,25 +6,22 @@
 
 """
 
-import os
-import smtplib
-from datetime import datetime
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
+from datetime import datetime, timedelta
 
 from aiogram import Bot
-from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, \
-    ReplyKeyboardMarkup, KeyboardButton
+from aiogram.types import (InlineKeyboardButton, InlineKeyboardMarkup,
+                           ReplyKeyboardMarkup, KeyboardButton)
 
 from dotenv import load_dotenv
 
-from api_functions import upload_and_get_link, \
-    upload_information_to_gsheets
+from api_functions import (upload_and_get_link,
+                           upload_information_to_gsheets)
 from database_functions import get_user_by_id
-from gps_functions import get_address_from_coordinates, \
-    parse_data_from_gps_dict
-from settings import DEV_TG_ID, YANDEX_CLIENT, YA_DISK_FOLDER, GPS_API_KEY, \
-    GOOGLE_CLIENT, GOOGLE_SHEET_NAME, database_path
+from gps_functions import (get_address_from_coordinates,
+    parse_data_from_gps_dict)
+from settings import (DEV_TG_ID, YANDEX_CLIENT, YA_DISK_FOLDER, GPS_API_KEY,
+                      GOOGLE_CLIENT, GOOGLE_SHEET_NAME, database_path,
+                      TIMEDELTA)
 
 load_dotenv()
 
@@ -119,37 +116,6 @@ def get_confirmation_keyboard():
     return keyboard
 
 
-async def send_email(message_text, target_email):
-    """Отправляет письмо на заданную почту."""
-    email = os.getenv("EMAIL")
-    password = os.getenv("PASSWORD_EMAIL")
-    time = datetime.now()
-
-    msg = MIMEMultipart()
-    msg['From'] = email
-    msg['To'] = target_email
-    msg[
-        'Subject'] = (f"Новое обращение принято ботом "
-                      f"{time.strftime('%Y-%m-%d %H:%M')}")
-    msg.attach(MIMEText(message_text))
-    try:
-        mailserver = smtplib.SMTP('smtp.yandex.ru', 587)
-
-        mailserver.ehlo()
-        # Защищаем соединение с помощью шифрования tls
-        mailserver.starttls()
-        # Повторно идентифицируем себя как зашифрованное соединение
-        # перед аутентификацией.
-        mailserver.ehlo()
-        mailserver.login(email, password)
-
-        mailserver.sendmail(email, target_email, msg.as_string())
-
-        mailserver.quit()
-    except smtplib.SMTPException:
-        print("Ошибка: Невозможно отправить сообщение")
-
-
 async def save_user_data(data: dict, tg_bot: Bot):
     gs_data = []
     address_dict = []
@@ -184,6 +150,8 @@ async def save_user_data(data: dict, tg_bot: Bot):
         gs_data.extend(list(data.values()))
         if address_dict:
             gs_data.extend(list(address_dict.values()))
+        gs_data.insert(0, (datetime.now() + timedelta(hours=TIMEDELTA)).strftime(
+        "%Y-%m-%d %H:%M:%S"))
         print(gs_data)
         upload_information_to_gsheets(GOOGLE_CLIENT, GOOGLE_SHEET_NAME,
                                       gs_data)
