@@ -154,7 +154,7 @@ def save_driver_report(db_path: str, report_data: list) -> bool:
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
         timestamp = int(time.time())  # Текущее время в формате UNIX
-        report_data.insert(0, timestamp)
+        report_data.insert(1, timestamp)
         # SQL-запрос для вставки данных
         cursor.execute('''
             INSERT INTO driver_reports (

@@ -16,7 +16,7 @@ from dotenv import load_dotenv
 
 from api_functions import (upload_and_get_link,
                            upload_information_to_gsheets)
-from database_functions import get_user_by_id
+from database_functions import get_user_by_id, save_driver_report
 from gps_functions import (get_address_from_coordinates,
     parse_data_from_gps_dict)
 from settings import (DEV_TG_ID, YANDEX_CLIENT, YA_DISK_FOLDER, GPS_API_KEY,
@@ -124,7 +124,7 @@ async def save_user_data(data: dict, tg_bot: Bot):
             get_user_by_id(data.get('user_id'), database_path).values())
     except Exception as e:
         await tg_bot.send_message(DEV_TG_ID,
-                                  f"Произошла ошибка {e} при поиске пользователя.")
+                                  f"Произошла ошибка {e} при поиске пользователя {data}.")
         return
     print(data)
     try:
@@ -134,7 +134,7 @@ async def save_user_data(data: dict, tg_bot: Bot):
         data.update({'ya_disk_file_name': ya_disk_file_name})
     except Exception as e:
         await tg_bot.send_message(DEV_TG_ID,
-                                  f"Произошла ошибка {e} при загрузке фото.")
+                                  f"Произошла ошибка {e} при загрузке фото {data}.")
         return
     try:
         address = get_address_from_coordinates(data.get('latitude'),
@@ -143,7 +143,7 @@ async def save_user_data(data: dict, tg_bot: Bot):
         address_dict = parse_data_from_gps_dict(address)
     except Exception as e:
         await tg_bot.send_message(DEV_TG_ID,
-                                  f"Произошла ошибка {e} при получении адреса.")
+                                  f"Произошла ошибка {e} при получении адреса {data}.")
         return
     try:
         del data['photo']
@@ -157,5 +157,11 @@ async def save_user_data(data: dict, tg_bot: Bot):
                                       gs_data)
     except Exception as e:
         await tg_bot.send_message(DEV_TG_ID,
-                                  f"Произошла ошибка {e} при загрузке ифнормации.")
+                                  f"Произошла ошибка {e} при загрузке ифнормации {gs_data}.")
+        return
+    try:
+        save_driver_report(database_path, gs_data)
+    except Exception as e:
+        await tg_bot.send_message(DEV_TG_ID,
+                                  f"Произошла ошибка {e} при сохраненнии в БД ифнормации {gs_data}.")
         return
