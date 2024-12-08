@@ -146,6 +146,7 @@ async def process_registration(event: types.CallbackQuery | types.Message):
         await message.answer("Вы уже зарегистрированы! "
                              "Воспользуйтесь меню \U0001F69B",
                              reply_markup=get_main_menu())
+        return
     else:
         await message.answer(text=start_process +
                                   "1/2 Напишите Вашу Фамилию Имя и Отчество",
